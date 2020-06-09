@@ -32,3 +32,4 @@ for src in os.listdir('pages'):
 shutil.copytree( STATIC +'css', HTML + 'css')      
 shutil.copytree( STATIC +'images', HTML + 'images')      
 shutil.copytree( STATIC +'papers', HTML + 'papers')      
+shutil.copytree( STATIC +'slides', HTML + 'slides')      
