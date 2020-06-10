@@ -1,6 +1,5 @@
-# Research
 
-# FPGA Bitstream Security
+## FPGA Bitstream Security
 
 Field-Programmable Gate Arrays (FPGAs) are reprogrammable hardware whose
 functionality is specified by a binary configuration file, or bitstream.
@@ -17,7 +16,7 @@ modifications.
 
 { [HOST'19](papers/duncan_host19.pdf) | [VTS'20](papers/duncan_vts20.pdf)}
 
-# FPGA Piracy Detection
+## FPGA Piracy Detection
 
 FPGA bitstreams often contain valuable Intellectual Property (IP), creating
 incentive for IP theft. This research project is focused
@@ -25,7 +24,7 @@ on automatically detecting pirated IP in FPGA using only extracted bitstreams.
 
 { [PAINE'20](papers/skipper_paine20.pdf) }
 
-# Emerging Non-volatile FPGA Architectures
+## Emerging Non-volatile FPGA Architectures
 
 90% of the FPGAs sold today are based on SRAM, a volatile memory that looses all state if
 powered down. A new wave of emerging non-volatile technologies are competing to
