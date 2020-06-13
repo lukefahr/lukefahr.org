@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from __future__ import unicode_literals
-
 import jinja2 as jinja
 import logging
 import os
@@ -10,9 +9,12 @@ from pybtex.style.formatting.__init__ import *
 from pybtex.style.template import * 
 from pybtex.style.formatting.unsrt import * 
 from pybtex.backends.html import *
+import typing 
 
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG)
+
+logger = logging    
 
 # Adapted from pybtex.style.formatting.unrst.py
 class MyStyle (Style):
@@ -22,9 +24,10 @@ class MyStyle (Style):
 
     def get_inproceedings_template(self, e):
         template = toplevel [
-            self.format_title(e, 'title'),
-            words [ 'By', sentence [self.format_names('author')],],
+            tag('h4') [self.format_title(e, 'title')],
+            words [ 'By', sentence [self.format_names('author')]],
             words [
+                Symbol('br'),
                 'In',
                 sentence [
                     optional[ self.format_editor(e, as_sentence=False) ],
@@ -53,7 +56,7 @@ class MyStyle (Style):
             words ['pages', pages],
         ]
         template = toplevel [
-            self.format_title(e, 'title'),
+            tag('h4') [self.format_title(e, 'title')],
             words ['By', self.format_names('author'),],
             sentence [
                 tag('em') [field('journal')],
@@ -66,7 +69,7 @@ class MyStyle (Style):
 
     def get_misc_template(self, e):
         template = toplevel [
-            optional[ self.format_title(e, 'title') ],
+            optional[ tag('h4') [self.format_title(e, 'title')]],
             optional[ words ['By', sentence [self.format_names('author')] ]],
             sentence[
                 optional[ field('howpublished') ],
@@ -78,11 +81,6 @@ class MyStyle (Style):
         return template
 
 class MyBackend (Backend):
-    symbols = {
-        'ndash': u'&ndash;',
-        'newblock': u'\n',
-        'nbsp': u'&nbsp;'
-    }
 
     ## HACK:  remove the \textbf from the author
     ## It actually merges with the previous author
@@ -96,18 +94,29 @@ class MyBackend (Backend):
 
         return super().format_str(text)
 
+    def format_tag(self, tag, text):
+        return r'<{0}>{1}</{0}>'.format(tag, text) if text else u''
+
     ## HACK!
     ## the /textbf{} sequences seem to get tagged as "protected", so we
     ## just capture that and make it bold here
     def format_protected(self, text):
-        return r'<bf>{}</bf>'.format(text)
+        return r'<b><em>{}</em></b>'.format(text)
 
 class PubsBuilder:
     def __init__(this, bib_files):
-        this.bib_strs = this._parseBibFiles(bib_files)
+
+
+        bib_strs = this._parseBibFiles(bib_files)
+        this.bib_strs = this._addUrls(bib_strs)
+
 
     def _parseBibFiles(this, bib_files):
         logger.info('Parsing Bib Files') 
+        
+        #handle strings or lists of strings
+        if isinstance(bib_files, str):
+            bib_files = [bib_files]
 
         parser = bibtex.Parser()
         style = MyStyle()
@@ -126,14 +135,48 @@ class PubsBuilder:
             bib_strs[bibkey] = bib_strs[bibkey].render(MyBackend())
 
         return bib_strs
+    
+    def _addUrls(this, bib_strs, static_path='./../static/'):
+        class Link(typing.NamedTuple):
+            path: str
+            label: str
+            
+        logger.info('Adding URLs')
+        
+        my_dir = os.path.dirname(os.path.abspath(__file__))
+        base_dir = os.path.abspath(my_dir + static_path ) + '/'
+
+        for bibkey, bibstr in bib_strs.items():
+            logger.debug('Processing ' + str(bibkey))
+            urls = []
+
+            paper = Link( 'papers/'+ bibkey + '.pdf', 'Paper')
+            pptx = Link('slides/' + bibkey + '.pptx', 'Slides')
+            pdf = Link('slides/' + bibkey + '.pdf', 'Slides')
+            links = [paper,pptx,pdf]
+            
+            for link in links:
+                logger.debug('Lookup: ' + str(base_dir + link.path))
+                if os.path.exists( base_dir + link.path):
+                    urls.append('<a href="' + link.path + '">' + 
+                                link.label + '</a>')
+                else:
+                    logger.debug(link.label + ' not found')
+            
+            if urls:
+                logger.debug('Adding reference links')
+                refLinks = '\n<br />[' + ' | '.join(urls) + ']'
+                bib_strs[bibkey] +=refLinks 
+
+        return bib_strs 
 
     def flatten(this, bib_strs=None): 
         bib_strs = bib_strs if bib_strs else this.bib_strs
-
-        s = '' 
+        
+        s = ''
         for bibkey, bibstr in bib_strs.items():
-           s += bibstr
-           s += '<br/>\n\n'
+           s += bibstr 
+           s += '<br /><br />\n\n'
         return s 
 
 
@@ -141,10 +184,19 @@ class PubsBuilder:
 
 def generate_page( jinja_env, html_folder):
 
-    bib_files = ['conferences.bib', 'journals.bib', 'patents.bib', 'workshops.bib']
-    bib_files = map(lambda x:  './cv/' + x, bib_files)
-    pb = PubsBuilder(bib_files)
-    content = pb.flatten()
+    bib_files = {'Conference Papers': 'conferences.bib',
+                'Journal Papers': 'journals.bib', 
+                'Patents': 'patents.bib', 
+                'Workshops': 'workshops.bib'}
+    
+    content = ''
+    for title,bibfile in bib_files.items():
+        bibfile= os.path.abspath('./cv/' +  bibfile)
+        print (bibfile)
+        pb = PubsBuilder(bibfile)
+        content +=  '<h2>' + title + '</h2>\n' + \
+                        pb.flatten()
+
 
     default_templ= jinja_env.get_template('default.html')
     name = 'publications'
