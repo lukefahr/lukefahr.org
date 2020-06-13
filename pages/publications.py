@@ -27,7 +27,6 @@ class MyStyle (Style):
             tag('h4') [self.format_title(e, 'title')],
             words [ 'By', sentence [self.format_names('author')]],
             words [
-                Symbol('br'),
                 'In',
                 sentence [
                     optional[ self.format_editor(e, as_sentence=False) ],
