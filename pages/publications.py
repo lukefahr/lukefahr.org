@@ -9,6 +9,7 @@ from pybtex.style.formatting.__init__ import *
 from pybtex.style.template import * 
 from pybtex.style.formatting.unsrt import * 
 from pybtex.backends.html import *
+from pybtex.style.names.plain import NameStyle
 import typing 
 
 logging.basicConfig(
@@ -16,17 +17,53 @@ logging.basicConfig(
 
 logger = logging    
 
+class MyNameStyle(NameStyle):
+
+    # HACK:
+    # scan the author names for \textbf.  
+    # If found, highlight the entire author's name
+    # I should have done this for each name, but ran out of time
+    def format(self, person, abbr=False):
+        highlight = False
+        for namefield in ['first_names', 'middle_names', 'prelast_names', 
+                        'last_names', 'lineage_names']:
+            names = getattr(person,namefield)
+            for nidx, name in enumerate(names):
+                if '\\textbf' in name: 
+                    logger.debug('Found a \\textbf, highlighting name')
+                    highlight = True
+                    newstr = names[nidx].replace('\\textbf{', '')
+                    newstr = newstr.replace('}','', 1)
+                    names[nidx] = newstr
+        normal = super().format(person, abbr)
+        if highlight:
+            return join[ tag('b') [ tag('em') [normal]]]
+        else: 
+            return normal            
+
+
 # Adapted from pybtex.style.formatting.unrst.py
 class MyStyle (Style):
-    
+
+    # override default name formatting
+    # to use the \textbf name-bolding style
+    def __init__(self, label_style=None, name_style=None, 
+            sorting_style=None , abbreviate_names=False, 
+                min_crossrefs=2, **kwargs):    
+        super(MyStyle,self).__init__(label_style, name_style, 
+                        sorting_style, abbreviate_names,
+                        min_crossrefs, **kwargs)
+        self.name_style = MyNameStyle()
+        self.format_name =self.name_style.format
+
     # override default formatting to 
     # customize for our uses 
 
     def get_inproceedings_template(self, e):
         template = toplevel [
-            tag('h4') [self.format_title(e, 'title')],
+            tag('h4') [ field('title')],
             words [ 'By', sentence [self.format_names('author')]],
-            words [
+            words [ Symbol('linebreak'), 
                 'In',
                 sentence [
                     optional[ self.format_editor(e, as_sentence=False) ],
@@ -55,9 +92,10 @@ class MyStyle (Style):
             words ['pages', pages],
         ]
         template = toplevel [
-            tag('h4') [self.format_title(e, 'title')],
+            tag('h4') [ field('title')],
             words ['By', self.format_names('author'),],
-            sentence [
+            words[ Symbol('linebreak'),
+                'In', 
                 tag('em') [field('journal')],
                 optional[ volume_and_pages ],
                 date],
@@ -68,39 +106,31 @@ class MyStyle (Style):
 
     def get_misc_template(self, e):
         template = toplevel [
-            optional[ tag('h4') [self.format_title(e, 'title')]],
-            optional[ words ['By', sentence [self.format_names('author')] ]],
-            sentence[
+            tag('h4') [ field('title')],
+            optional[ words ['By', 
+                        sentence [self.format_names('author')] ]],
+            words [ Symbol('linebreak'), 
+                        sentence [optional_field('note')]],
+            sentence[ 
                 optional[ field('howpublished') ],
                 optional[ date ],
             ],
-            sentence [ optional_field('note') ],
+
             self.format_web_refs(e),
         ]
         return template
 
+# based off backends/html.py
 class MyBackend (Backend):
 
-    ## HACK:  remove the \textbf from the author
-    ## It actually merges with the previous author
-    def format_str(self,text):
-        if '\\textbf' in text:
-            logger.debug('Replacing \\textbf ' + str(text))
-            text = text.replace('\\textbf', '')
-        if '\\' in text:
-            logger.critical("Unprocessed Latex sequence: " + str(text) )
-            raise Exception
-
-        return super().format_str(text)
-
-    def format_tag(self, tag, text):
-        return r'<{0}>{1}</{0}>'.format(tag, text) if text else u''
-
-    ## HACK!
-    ## the /textbf{} sequences seem to get tagged as "protected", so we
-    ## just capture that and make it bold here
-    def format_protected(self, text):
-        return r'<b><em>{}</em></b>'.format(text)
+    # Add a new 'linebreak' symbol to insert a
+    # HTML <br \>  as desired
+    symbols = {
+         'ndash': u'&ndash;',
+         'newblock': u'\n', 
+         'linebreak': u'<br \>\n', # force line break
+         'nbsp': u'&nbsp;'
+    }
 
 class PubsBuilder:
     def __init__(this, bib_files):
@@ -127,11 +157,11 @@ class PubsBuilder:
             
         for bibkey,entry in bib_data.entries.items():
             logger.debug('formatting: ' + str(bibkey))
-            #print (entry)
             # format into richtext
-            bib_strs[bibkey] = style.format_entry( bibkey, entry).text
+            richFormat = style.format_entry( bibkey, entry).text
+            logger.debug('Rich formatting: ' + str(richFormat))
             #format into custom-html
-            bib_strs[bibkey] = bib_strs[bibkey].render(MyBackend())
+            bib_strs[bibkey] = richFormat.render(MyBackend())
 
         return bib_strs
     
