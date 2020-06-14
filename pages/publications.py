@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 from __future__ import unicode_literals
-import jinja2 as jinja
 import logging
 import os
 from pybtex.database.input import bibtex
@@ -211,7 +210,7 @@ class PubsBuilder:
 
 ## Generates the page
 
-def generate_page( jinja_env, html_folder):
+def generate_content(): 
 
     bib_files = {'Conference Papers': 'conferences.bib',
                 'Journal Papers': 'journals.bib', 
@@ -226,9 +225,6 @@ def generate_page( jinja_env, html_folder):
         content +=  '<h2>' + title + '</h2>\n' + \
                         pb.flatten()
 
+    return content 
 
-    default_templ= jinja_env.get_template('default.html')
-    name = 'publications'
-    page = default_templ.render(title=name, content=content)
-    with open(html_folder + '/' + name + '.html', 'w') as out:
-        out.write(page)
+    
