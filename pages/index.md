@@ -12,7 +12,7 @@ Our group is currently focused on three main projects:
  * FPGA piracy detection
  * Security of non-volatile FPGA architectures
 
-For more details, please check out our research group, [SAIL-IN](http://fpga.luddy.indiana.edu). 
+For more details, please check out our research group, [SAIL-IN](http://sailin.luddy.indiana.edu). 
 
 <span style="background-color:#ffffcc"> If you are interested in pursuing a PhD
 in FPGA or embedded systems security, please contact me!  </span>
